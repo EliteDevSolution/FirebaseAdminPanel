@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dashboard - Update</title>
+
+    <!-- Bootstrap -->
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/toastr/toastr.min.css" rel="stylesheet">
+    <style type="text/css">
+        .table
+        {
+            cursor: pointer;
+        }
+        li
+        {
+            cursor: pointer;
+        }   
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <br>
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                   <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#nav" aria-expanded="false">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="index.html">Dashboard</a>
+                </div>
+                <div class="collapse navbar-collapse" id="nav">
+                    <ul class="nav navbar-nav">
+                        <li><a href="email.html">Email Text</a></li>
+                    </ul>
+                    <ul class="nav navbar-nav">
+                        <li><a href="card.html">Card Text</a></li>
+                    </ul>
+                    <ul class="nav navbar-nav pull-right">
+                        <li><a id="logout">Logout</a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+        
+        <form id="update_entry">
+            <h2>Title</h2>
+            <input type="text" name="title" class="form-control col-md-12" required>
+            
+            <br>
+            <br>
+            
+            <h2>Description</h2>
+            <textarea name="description" id="description"></textarea>
+            
+            <br>
+            <br>
+            <div>
+                <image id="img" width=300 height=200 style="display: none;"/>
+            </div>
+            <br>
+            <h2>Image</h2>
+            <input type="file" accept="image/*" name="image" id="image" />
+            <br>
+            <div class="text-right">
+                <button class="btn btn-large btn-success" id="btn-save">Update</button>
+            </div>
+        </form>
+
+    </div>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/3.3.0/firebase.js"></script>
+    <script src="css/toastr/toastr.min.js"></script>
+    <script src="https://cdn.ckeditor.com/4.5.10/standard/ckeditor.js"></script>
+    <script src="js/common.js"></script>
+    
+    <script>
+        /////////////////////////////////////
+
+        
+        /**********************\
+         * check login status *
+        \**********************/
+        
+        firebase.auth().onAuthStateChanged(function (user) {
+            if (user) { 
+                
+                document.getElementById('logout').onclick = function () {
+                        if (confirm('Logout?')) {
+                            firebase.auth().signOut(); // This will trigger onAuthStateChanged again, immediately.
+                        }
+                    };
+                /*********************************\
+                 * Fetch the entry from Firebase *
+                \*********************************/
+                var entry_id = $_GET('id');
+
+                if (entry_id) {
+                    
+                    var Entry = firebase.database().ref('Prizes').child(entry_id);
+                    var removeimg = '';
+
+                    Entry.once('value', function (r) { // once = just this once, no need to actively watch the changes
+                        var entry = r.val();
+                        
+                        $('#update_entry [name="title"]').val(entry.title);
+                        $('#update_entry [name="description"]').val(entry.description);
+                        if(entry.link)
+                        {
+                            $('#img').show();
+                            $('#img').attr('src', entry.link);
+                            removeimg = entry.image;
+                        }
+                        CKEDITOR.replace('description');
+                    });
+                    
+                    
+                    /**********************\
+                     * Save the form data *
+                    \**********************/
+                    $('#update_entry').submit(function(e){
+                        e.preventDefault();
+                        if(fileName != '')
+                            {
+                                if(removeimg != '')
+                                {
+                                    deleteImage(removeimg);
+                                }
+                                var today = new Date();
+                                var time = today.getHours() + '' + today.getMinutes()  + '' + today.getSeconds();    
+                                console.log(time + fileName);
+                                uploadTask = imagesRef.child(time + fileName).put(curFile);
+
+                                uploadTask.on('state_changed', function(snapshot){
+                                  // Observe state change events such as progress, pause, and resume
+                                  // Get task progress, including the number of bytes uploaded and the total number of bytes to be uploaded
+                                  var progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                                  $('#btn-save').attr('disabled', true);
+                                  $('#btn-save').text('Saving...');
+                                  console.log('Upload is ' + progress + '% done');
+                                  $('#btn-save').text('Saving...('+ progress.toFixed(2) +'%)');
+                                  switch (snapshot.state) {
+                                    case firebase.storage.TaskStateo.PAUSED: // or 'paused'
+                                      console.log('Upload is paused');
+                                      break;
+                                    case firebase.storage.TaskState.RUNNING: // or 'running'
+                                      console.log('Upload is running');
+                                      break;
+                                  }
+                                }, function(error) {
+                                  // Handle unsuccessful uploads
+                                }, function() {
+                                  // Handle successful uploads on complete
+                                  // For instance, get the download URL: https://firebasestorage.googleapis.com/...
+                                  uploadTask.snapshot.ref.getDownloadURL().then(function(downloadURL) {
+                                    Entry.transaction(function(entry){
+                                        entry = entry || {};
+                                        entry.title = $('#update_entry [name="title"]').val();
+                                        entry.description = CKEDITOR.instances['description'].getData();
+                                        entry.image = time + fileName;
+                                        entry.link = downloadURL; 
+                                        return entry;
+
+                                    }).then(function(){
+                                            window.location.href = 'entry.html?id='+entry_id;    
+                                    }).catch(function(error){
+                                        alert(error);
+                                    });     
+                                  });
+                                });
+                            }  else 
+                            {
+                                Entry.transaction(function(entry){
+                                    entry = entry || {};
+                                    entry.title = $('#update_entry [name="title"]').val();
+                                    entry.description = CKEDITOR.instances['description'].getData();
+                                    return entry;
+
+                                }).then(function(){
+                                    if(fileName == '')
+                                    {
+                                        window.location.href = 'entry.html?id='+entry_id;    
+                                    }
+                                }).catch(function(error){
+                                    alert(error);
+                                });
+                            }  
+                        return false;
+                    });
+                    
+                }else{
+                    if(fileName == '')
+                    {
+                        window.location.href = 'create.html';
+                    }
+                }
+                
+                
+            }else{
+                // if not logged in
+                alert('Please log-in')
+                window.location.href = 'login.html';
+                
+            }
+        });
+        
+        
+    </script>
+
+
+</body>
+
+</html>

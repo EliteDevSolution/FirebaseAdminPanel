@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Firebase - Create</title>
+
+    <!-- Bootstrap -->
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/font-awesome.css" rel="stylesheet">
+    <link href="http://fonts.googleapis.com/css?family=Open+Sans:400italic,600italic,400,600" rel="stylesheet">
+    <link href="css/toastr/toastr.min.css" rel="stylesheet">
+    <style type="text/css">
+        .table
+        {
+            cursor: pointer;
+        }
+        li
+        {
+            cursor: pointer;
+        }   
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <br>
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                   <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#nav" aria-expanded="false">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="index.html">Dashboard</a>
+                </div>
+                <div class="collapse navbar-collapse" id="nav">
+                    <ul class="nav navbar-nav pull-right">
+                        <li><a id="logout">Logout</a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+        
+        <form id="new_entry">
+            <h2>Title</h2>
+            
+            <input type="text" name="title" id="title" class="form-control col-md-12" required>
+            
+            <br>
+            <br>
+            
+            <h2>Description</h2>
+            
+            <textarea name="description" id="description"></textarea>
+            
+            <br>
+            <br>
+            <div>
+                <image id="img" width=300 height=225 />
+            </div>
+
+            <h2>Image</h2>
+            <input type="file" accept="image/*" name="image" id="image" />
+            
+            <div class="text-right">
+                <button class="btn btn-large btn-success" id="btn-save"><i class="icon-plus"></i> Create new data</button>
+            </div>
+        </form>
+
+    </div>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/3.3.0/firebase.js"></script>
+    <script src="css/toastr/toastr.min.js"></script>
+    <script src="https://cdn.ckeditor.com/4.5.10/standard/ckeditor.js"></script>
+    <script src="js/common.js"></script>
+    <script>
+        $('#title').focus();
+        var rowcount = 0;
+        var Entry = firebase.database().ref('Prizes');
+        $(document).ready(function()
+        {
+            
+            Entry.limitToLast(1).once("child_added", function (snapshot) {
+                rowcount = parseInt(snapshot.getKey()) + 1;
+            });
+        });
+
+        
+        // firebase config
+        /**********************\
+         * login status check *
+        \**********************/
+        
+        firebase.auth().onAuthStateChanged(function (user) {
+            if (user) { 
+                document.getElementById('logout').onclick = function () {
+                        if (confirm('Logout?')) {
+                            firebase.auth().signOut(); // This will trigger onAuthStateChanged again, immediately.
+                        }
+                    };
+                // init CKEditor
+                CKEDITOR.replace('description');
+                
+                /***************************************************\
+                 * Process form data and save to Firebase database *
+                \***************************************************/
+                
+                $('#new_entry').submit(function(e){
+                    var Entry = firebase.database().ref(`Prizes/${rowcount}`);
+                    e.preventDefault();
+                    
+                    var entry = {};
+                    entry.title = $(this).find('[name="title"]').val();
+                    entry.description = CKEDITOR.instances['description'].getData();
+                    
+                    //return false;
+                    //entry.key = rowcount;
+                    if(entry.description == '')
+                    {
+                        toastr.warning('Input description!');
+                        CKEDITOR.instances['description'].focus();
+                        return false;
+                    }
+                    var uploadTask;
+                    var today = new Date();
+                    var time = today.getHours() + '' + today.getMinutes()  + '' + today.getSeconds();
+                    if(fileName != '')
+                    {
+                        console.log(time + fileName);
+                        entry.image = time + fileName;
+                        uploadTask = imagesRef.child(time + fileName).put(curFile);
+
+                        uploadTask.on('state_changed', function(snapshot){
+                          // Observe state change events such as progress, pause, and resume
+                          // Get task progress, including the number of bytes uploaded and the total number of bytes to be uploaded
+                          var progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                          $('#btn-save').attr('disabled', true);
+                          $('#btn-save').text('Saving...');
+                          console.log('Upload is ' + progress + '% done');
+                          $('#btn-save').text('Saving...('+ progress.toFixed(2) +'%)');
+                          switch (snapshot.state) {
+                            case firebase.storage.TaskStateo.PAUSED: // or 'paused'
+                              console.log('Upload is paused');
+                              break;
+                            case firebase.storage.TaskState.RUNNING: // or 'running'
+                              console.log('Upload is running');
+                              break;
+                          }
+                        }, function(error) {
+                          // Handle unsuccessful uploads
+                        }, function() {
+                          // Handle successful uploads on complete
+                          // For instance, get the download URL: https://firebasestorage.googleapis.com/...
+                          uploadTask.snapshot.ref.getDownloadURL().then(function(downloadURL) {
+                              entry.link = downloadURL;
+                              console.log('File available at', downloadURL);
+                                Entry.set({
+                                    title:entry.title,description:entry.description,link:entry.link,image:entry.image
+                                  }, function(error) {
+                                    if (!error) {
+                                        window.location.href = 'entry.html?id='+rowcount  
+                                    }
+                                });
+                                return false;
+                          });
+                        });
+                    }  else
+                    {
+
+                        Entry.set({
+                            title:entry.title,description:entry.description
+                          }, function(error) {
+                            if (!error) {
+                                window.location.href = 'entry.html?id='+rowcount  
+                            }
+                        });
+                        return false;
+                    }
+                  });
+                
+            }else{
+                // if not logged in
+                toastr.error('Please login first');
+                window.location.href = 'login.html';
+                
+            }
+        });
+
+        
+    </script>
+
+
+</body>
+
+</html>

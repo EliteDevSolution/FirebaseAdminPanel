@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Firebase -Event Create</title>
+
+    <!-- Bootstrap -->
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/font-awesome.css" rel="stylesheet">
+    <link href="http://fonts.googleapis.com/css?family=Open+Sans:400italic,600italic,400,600" rel="stylesheet">
+    <link href="css/toastr/toastr.min.css" rel="stylesheet">
+    <link href="css/jquery.datetimepicker.min.css" rel="stylesheet">
+    <style type="text/css">
+        .table
+        {
+            cursor: pointer;
+        }
+        li
+        {
+            cursor: pointer;
+        } 
+        h2
+        {
+            font-size: 18px;
+        }  
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <br>
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                   <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#nav" aria-expanded="false">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="event.html">Dashboard</a><label class="navbar-brand">/ Edit Event</label>
+                </div>
+                <div class="collapse navbar-collapse" id="nav">
+                    <ul class="nav navbar-nav pull-right">
+                        <li><a id="logout">Logout</a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+        
+        <form id="update_event">
+            
+            <h2>Title</h2>
+            
+            <input type="text" name="evt-title" id="evt-title" class="form-control col-md-12" required>
+            
+            <br>
+            <br>
+
+            <div class="text-right">
+                <button class="btn btn-large btn-success" id="btn-save"> Update</button>
+            </div>
+        </form>
+        <br>
+        <br>
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <!-- <th> No.</th> -->
+                    <th> Key</th>
+                    <th> Question </th>
+                    <th> Action </th>
+                </tr>
+            </thead>
+            <tbody id="event_lists">
+            </tbody>  
+        </table>
+
+    </div>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/3.3.0/firebase.js"></script>
+    <script src="css/toastr/toastr.min.js"></script>
+    <script src="js/jquery.datetimepicker.full.min.js"></script>
+    <!-- <script src="https://cdn.ckeditor.com/4.5.10/standard/ckeditor.js"></script> -->
+    <script src="js/common.js"></script>
+
+    <script>
+        $('#evt-title').focus();
+        var entry_id = $_GET('id');
+
+       
+        // firebase config
+        /**********************\
+         * login status check *
+        \**********************/
+        
+        firebase.auth().onAuthStateChanged(function (user) {
+            if (user) { 
+                document.getElementById('logout').onclick = function () {
+                        if (confirm('Logout?')) {
+                            firebase.auth().signOut(); // This will trigger onAuthStateChanged again, immediately.
+                        }
+                    };
+                // init CKEditor
+                //CKEDITOR.replace('description');
+                
+                /***************************************************\
+                 * Process form data and save to Firebase database *
+                \***************************************************/
+
+                entry_id = decodeURIComponent(entry_id.trim());
+                console.log(entry_id);
+                var Entry = firebase.database().ref('Event/' + entry_id);
+
+                    Entry.once('value', function (r) { // once = just this once, no need to actively watch the changes
+                        var entry = r.val();
+                        $('#evt-title').val(entry.Title);
+                    });   
+               
+                var Entry = firebase.database().ref('Event/' + entry_id + '/Quiz').orderByKey();
+                Entry.on('value', function (r) {
+                    $('#event_lists').html('Loading...');
+                    var reallist = r.val();
+                    var htmlText = '';
+                    console.log(reallist);
+                    index = 0;
+                    for(key in reallist) {
+                        index++;
+                        htmlText +=  `<tr>
+                                        <td>${key}</td>
+                                        <td>${reallist[key]['question']}</td>
+                                        <td class="td-actions">
+                                            <a href="edit_quiz.html?id=${key}&parentkey=${entry_id}" class="btn btn-small btn-primary">
+                                                <i class="btn-icon-only icon-edit"> </i>
+                                            </a>
+                                            <a onclick="javascript:deleteQuizRow('${key}','${entry_id}',this)" class="btn btn-danger btn-small">
+                                                <i class="btn-icon-only icon-remove"> </i>
+                                            </a>
+                                        </td>
+                                </tr>`;  
+                    }
+                    $('#event_lists').html(htmlText);
+                });
+
+                $('#update_event').submit(function(e){
+                    e.preventDefault();
+                    var Entry =  firebase.database().ref('Event/' + entry_id);
+                    Entry.transaction(function(entry){
+                                    entry = entry || {};
+                                    entry.Title = $('#evt-title').val();
+                                    return entry;
+                                }).then(function(){
+                                    toastr.success('The operation successed!');
+                                }).catch(function(error){
+                                    alert(error);
+                                });
+                });
+                
+            }else{
+                // if not logged in
+                toastr.error('Please login first');
+                window.location.href = 'login.html';
+            }
+        });
+
+    </script>
+
+
+</body>
+
+</html>

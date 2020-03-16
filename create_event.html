@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Firebase -Event Create</title>
+
+    <!-- Bootstrap -->
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/font-awesome.css" rel="stylesheet">
+    <link href="http://fonts.googleapis.com/css?family=Open+Sans:400italic,600italic,400,600" rel="stylesheet">
+    <link href="css/toastr/toastr.min.css" rel="stylesheet">
+    <link href="css/jquery.datetimepicker.min.css" rel="stylesheet">
+    <style type="text/css">
+        .table
+        {
+            cursor: pointer;
+        }
+        li
+        {
+            cursor: pointer;
+        } 
+        h2
+        {
+            font-size: 18px;
+        }  
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <br>
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                   <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#nav" aria-expanded="false">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="event.html">Dashboard</a><label class="navbar-brand">/ Add Event</label>
+                </div>
+                <div class="collapse navbar-collapse" id="nav">
+                    <ul class="nav navbar-nav pull-right">
+                        <li><a id="logout">Logout</a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+        
+        <form id="new_event">
+            <h2>Date & Time</h2>
+            
+            <input type="text" name="evt-date_time" id="evt-date_time" class="form-control col-md-12"  required style="width: 250px;">
+            
+            <br>
+            
+            <h2>Title</h2>
+            
+            <input type="text" name="evt-title" id="evt-title" class="form-control col-md-12" required>
+            
+            <br>
+
+            <h2>Question?</h2>
+            
+            <input type="text" name="evt-question" id="evt-question" class="form-control col-md-12" required>
+            
+            <br>
+
+            <h2>Quiz 1</h2>
+            
+            <input type="text" name="quiz1" id="quiz1" class="form-control col-md-12">
+            
+            <br>
+
+            <h2>Quiz 2</h2>
+            
+            <input type="text" name="quiz2" id="quiz2" class="form-control col-md-12">
+            
+            <br>
+
+            <h2>Quiz 3</h2>
+            
+            <input type="text" name="quiz3" id="quiz3" class="form-control col-md-12">
+            
+            <br>
+
+            <h2>Quiz 4</h2>
+            
+            <input type="text" name="quiz4" id="quiz4" class="form-control col-md-12">
+            
+            <br>
+
+            <h2>Quiz 5</h2>
+            
+            <input type="text" name="quiz5" id="quiz5" class="form-control col-md-12">
+            
+            <br>
+
+            <h2>Answer</h2>
+            
+            <input type="number" name="evt-answer" id="evt-answer" min=1 max=5 class="form-control col-md-12" style="width: 250px;">
+            
+            <br>
+
+            <h2>Time</h2>
+            
+            <input type="number" name="evt-time" id="evt-time" min=0 max=1000 setp=0.001 class="form-control col-md-12" style="width: 250px;">
+            
+            <br>
+
+            <h2>Count</h2>
+            
+            <input type="number" name="evt-cnt" id="evt-cnt" min=0 max=1000 setp=1 class="form-control col-md-12" style="width: 250px;">
+            
+            <br>
+
+            <div class="text-right">
+                <button class="btn btn-large btn-success" id="btn-save"><i class="icon-plus"></i> Create new data</button>
+            </div>
+        </form>
+
+    </div>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/3.3.0/firebase.js"></script>
+    <script src="css/toastr/toastr.min.js"></script>
+    <script src="js/jquery.datetimepicker.full.min.js"></script>
+    <!-- <script src="https://cdn.ckeditor.com/4.5.10/standard/ckeditor.js"></script> -->
+    <script src="js/common.js"></script>
+
+    <script>
+        $('#evt-date_time').focus();
+        let current_datetime = new Date()
+        let month = current_datetime.getMonth() + 1;
+        if(month.toString().length == 1) month = '0' + month;
+        let formatted_date = current_datetime.getFullYear() + "-" + (month) + "-" + current_datetime.getDate() + " 10:00";
+        $('#evt-date_time').datetimepicker({format: 'Y-m-d H:i'});
+        $('#evt-date_time').val(formatted_date);
+       
+        // firebase config
+        /**********************\
+         * login status check *
+        \**********************/
+        
+        firebase.auth().onAuthStateChanged(function (user) {
+            if (user) { 
+                document.getElementById('logout').onclick = function () {
+                        if (confirm('Logout?')) {
+                            firebase.auth().signOut(); // This will trigger onAuthStateChanged again, immediately.
+                        }
+                    };
+                // init CKEditor
+                //CKEDITOR.replace('description');
+                
+                /***************************************************\
+                 * Process form data and save to Firebase database *
+                \***************************************************/
+                
+                $('#new_event').submit(function(e){
+                    var strdatetime = $('#evt-date_time').val();
+                    var question =  $('#evt-question').val();
+                    var quiz1 = $('#quiz1').val();
+                    var quiz2 = $('#quiz2').val();
+                    var quiz3 = $('#quiz3').val();
+                    var quiz4 = $('#quiz4').val();
+                    var quiz5 = $('#quiz5').val();
+                    var answer = $('#evt-answer').val();
+                    var time = $('#evt-time').val();
+                    var count = $('#evt-cnt').val();
+                    var lastid = 0;
+                    var Entry = firebase.database().ref('Event/' + strdatetime + '/Quiz');
+                    Entry.limitToLast(1).once("child_added", function (snapshot) {
+                        lastid = parseInt(snapshot.getKey()) + 1;
+                    });
+                    if(strdatetime == '')
+                    {
+                        $('#evt-date_time').focus();
+                        return;   
+                    } else if(question == '')
+                    {
+                        $('#evt-question').focus();
+                        return;
+                    } else if(answer == '')
+                    {
+                        $('#evt-answer').focus();
+                        return;
+                    } else if(time == '')
+                    {
+                        $('evt-time').focus();
+                        return;
+                    } else if(count == '')
+                    {
+                        $('#evt-cnt').focus();
+                        return;
+                    } else if(quiz1 == '' && quiz2 == '' && quiz3 == '' && quiz4 == '' && quiz5 == '')
+                    {
+                        $('#quiz1').focus();
+                        return;
+                    }
+
+                    //strdatetime = '2019-08-20 16:20';
+                    var Entry = firebase.database().ref('Event').child(strdatetime);
+                    e.preventDefault();
+                        Entry.once('value', function (r) {
+                        console.log(r.val());
+                        if(!r.val()) //Add new data
+                        {
+                            var addEntry = firebase.database().ref('Event/' + strdatetime + '/Quiz/1');
+                            var addTitle = firebase.database().ref('Event/' + strdatetime);
+                            addTitle.set({
+                                Title:$('#evt-title').val()
+                              }, function(error) {
+                                console.log(error);
+                            });
+                            addEntry.set({
+                                answer:answer, count:count, quiz1:quiz1, quiz2:quiz2, quiz3:quiz3, quiz4:quiz4, quiz5:quiz5, question:question, time:time
+                              }, function(error) {
+                                console.log(error);
+                                if(!error)
+                                {
+                                    toastr.success('The operation successed!');
+                                    $('#new_event').trigger("reset");
+                                    $('#evt-date_time').val(strdatetime);
+                                }
+                            });
+                        } else  //Last count added
+                        {
+                            var addLastEntry = firebase.database().ref('Event/' + strdatetime + '/Quiz/' + lastid);
+                            addLastEntry.set({
+                                answer:answer, count:count, quiz1:quiz1, quiz2:quiz2, quiz3:quiz3, quiz4:quiz4, quiz5:quiz5, question:question, time:time
+                              }, function(error) {
+                                console.log(error);
+                                if(!error)
+                                {
+                                    toastr.success('The operation successed!');
+                                    $('#new_event').trigger("reset");
+                                    $('#evt-date_time').val(strdatetime);
+                                }
+                            });
+                        }
+                    });
+                });
+                
+            }else{
+                // if not logged in
+                toastr.error('Please login first');
+                window.location.href = 'login.html';
+            }
+        });
+
+    </script>
+
+
+</body>
+
+</html>
